@@ -23,6 +23,10 @@ describe Sequel::ReplicaFailover::DTraceProvider do
       it 'has :stick for its name' do
         expect(provider.stick.name).to eq(:stick)
       end
+
+      it 'takes an integer argument' do
+        expect(provider.stick.arguments).to eq([:integer])
+      end
     end
 
     describe '#unstick' do

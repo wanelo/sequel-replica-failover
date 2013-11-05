@@ -50,9 +50,9 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
   end
 
   def stick
-    probe { |p| p.stick }
-    @stuck_at ||= Time.now
     @stuck_times ||= 0
+    probe(@stuck_times) { |p| p.stick }
+    @stuck_at ||= Time.now
     @stuck_times += 1
   end
 

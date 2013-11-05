@@ -10,7 +10,7 @@ module Sequel
       end
 
       def stick
-        @stick_probe ||= provider.probe(:connection, :stick)
+        @stick_probe ||= provider.probe(:connection, :stick, :integer)
       end
 
       def unstick
