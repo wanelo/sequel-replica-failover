@@ -42,6 +42,7 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
   private
 
   def unstick(server)
+    probe(server.to_s) { |p| p.unstick }
     disconnect_server(server)
     @conns[server] = nil
     @stuck_at = nil
@@ -49,8 +50,19 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
   end
 
   def stick
+    probe { |p| p.stick }
     @stuck_at ||= Time.now
     @stuck_times ||= 0
     @stuck_times += 1
+  end
+
+  def probe(*args)
+    p = yield(Sequel::ReplicaFailover::DTraceProvider.provider)
+    return unless p.enabled?
+    if args.any?
+      p.fire(*args)
+    else
+      p.fire
+    end
   end
 end
