@@ -26,6 +26,7 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
       stick
 
       if @stuck_times >= @pool_retry_count
+        unstick(server)
         raise
       end
 
