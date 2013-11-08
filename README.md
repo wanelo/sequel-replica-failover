@@ -1,5 +1,7 @@
 # Automatic read-only failover for Sequel
 
+[![Code Climate](https://codeclimate.com/github/wanelo/sequel-replica-failover.png)](https://codeclimate.com/github/wanelo/sequel-replica-failover)
+
 This provides a NOT-THREADSAFE sharded connection pool for failing over between configured replicas.
 
 The mechanisms it provides are as follows:
