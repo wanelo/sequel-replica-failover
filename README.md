@@ -1,5 +1,6 @@
 # Automatic read-only failover for Sequel
 
+[![Gem Version](https://badge.fury.io/rb/sequel-replica-failover.png)](http://badge.fury.io/rb/sequel-replica-failover)
 [![Code Climate](https://codeclimate.com/github/wanelo/sequel-replica-failover.png)](https://codeclimate.com/github/wanelo/sequel-replica-failover)
 
 This provides a NOT-THREADSAFE sharded connection pool for failing over between configured replicas.
