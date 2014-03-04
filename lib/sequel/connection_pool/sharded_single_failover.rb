@@ -8,6 +8,10 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     @pool_retry_count   = opts[:pool_retry_count]   || 5
   end
 
+  class << self
+    attr_accessor :on_disconnect
+  end
+
   # Yields the connection to the supplied block for the given server.
   # This method simulates the ConnectionPool#hold API.
   def hold(server=:default, &block)
@@ -18,8 +22,9 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     end
 
     super(server, &block)
-  rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError
+  rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
     if server == :read_only && !@db.in_transaction?(server: :read_only)
+      self.class.on_disconnect.call(e, self) if self.class.on_disconnect
       disconnect_server(server)
       @conns[server] = nil
 

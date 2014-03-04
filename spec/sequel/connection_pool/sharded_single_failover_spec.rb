@@ -49,6 +49,17 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
           @connection_pool.hold(:read_only) {}
         end
 
+        context 'with an on_disconnect callback' do
+          it 'calls the callback with the error' do
+            callback = double("callback")
+            Sequel::ShardedSingleFailoverConnectionPool.on_disconnect = callback
+
+            expect(callback).to receive(:call).with(an_instance_of(Sequel::DatabaseDisconnectError), @connection_pool)
+            call_count = 0
+            @connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
+          end
+        end
+
         context 'when in a transaction' do
           it 'raises an exception' do
             Sequel::Mock::Database.any_instance.should_receive(:in_transaction?).and_return(true)
@@ -64,6 +75,14 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
         proc { @connection_pool.hold { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 } }.should raise_error(Sequel::DatabaseDisconnectError)
         expect(call_count).to eq(1)
       end
+    end
+  end
+
+  describe '.on_disconnect' do
+    it 'sets the on_disconnect attribute' do
+      callback = Proc.new{ puts "woo" }
+      Sequel::ShardedSingleFailoverConnectionPool.on_disconnect = callback
+      expect(Sequel::ShardedSingleFailoverConnectionPool.on_disconnect).to eq(callback)
     end
   end
 end
