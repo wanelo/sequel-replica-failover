@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["paul@wanelo.com"]
   spec.description   = %q{Automatically failover between replicas when they go down.}
   spec.summary       = %q{Automatically failover when replicas go down.}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/wanelo/sequel-replica-failover"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
