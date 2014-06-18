@@ -8,9 +8,29 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     @pool_retry_count   = opts[:pool_retry_count]   || 5
   end
 
+  @on_disconnect = []
+  @on_unstick = []
+
   class << self
-    attr_accessor :on_disconnect
+    attr_accessor :on_disconnect, :on_unstick
+
+    def register_on_disconnect_callback(callback)
+      @on_disconnect << callback
+    end
+
+    def clear_on_disconnect_callbacks
+      @on_disconnect.clear
+    end
+
+    def register_on_unstick_callback(callback)
+      @on_unstick << callback
+    end
+
+    def clear_on_unstick_callbacks
+      @on_unstick.clear
+    end
   end
+
 
   # Yields the connection to the supplied block for the given server.
   # This method simulates the ConnectionPool#hold API.
@@ -26,7 +46,9 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     raise if server != :read_only
     raise if @db.in_transaction?(server: :read_only)
 
-    self.class.on_disconnect.call(e, self) if self.class.on_disconnect
+    unless self.class.on_disconnect.empty?
+      self.class.on_disconnect.each { |callback| callback.call(e, self) }
+    end
     disconnect_server(server)
     @conns[server] = nil
 
@@ -44,15 +66,18 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     :sharded_single_failover
   end
 
-  private
-
   def unstick(server)
+    unless self.class.on_unstick.empty?
+      self.class.on_unstick.each { |callback| callback.call(self) }
+    end
     probe(server.to_s) { |p| p.unstick }
     disconnect_server(server)
     @conns[server] = nil
     @stuck_at = nil
     @stuck_times = nil
   end
+
+  private
 
   def stick
     @stuck_times ||= 0

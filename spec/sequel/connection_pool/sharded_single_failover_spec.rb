@@ -18,18 +18,21 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
     db
   end
 
-  describe '#hold' do
-    before do
-      msp = proc { @max_size=3 }
-      @connection_pool = Sequel::ConnectionPool.get_pool(mock_db.call(proc { |c| msp.call }) { :got_connection }, CONNECTION_POOL_DEFAULTS)
-    end
+  after do
+    Sequel::ShardedSingleFailoverConnectionPool.clear_on_disconnect_callbacks
+    Sequel::ShardedSingleFailoverConnectionPool.clear_on_unstick_callbacks
+  end
 
+  let(:msp) { proc { @max_size=3 } }
+  let(:connection_pool) { Sequel::ConnectionPool.get_pool(mock_db.call(proc { |c| msp.call }) { :got_connection }, CONNECTION_POOL_DEFAULTS) }
+
+  describe '#hold' do
     context 'with read_only server' do
       context 'when block raises a database connection error' do
         it 'retries until the a successful connection is made' do
           call_count = 0
           expect {
-            @connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
+            connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
           }.not_to raise_error
           expect(call_count).to eq(2)
         end
@@ -37,7 +40,7 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
         it 'only retries N number of times before actually raising the error' do
           call_count = 0
           expect {
-            @connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError }
+            connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError }
           }.to raise_error(Sequel::DatabaseDisconnectError)
           expect(call_count).to eq(3)
         end
@@ -46,24 +49,24 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
           Timecop.freeze -16 do
             call_count = 0
             expect {
-              @connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
+              connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
             }.not_to raise_error
             expect(call_count).to eq(2)
-            expect(@connection_pool.size).to eq(1)
+            expect(connection_pool.size).to eq(1)
           end
 
-          expect(@connection_pool).to receive(:make_new).once
-          @connection_pool.hold(:read_only) {}
+          expect(connection_pool).to receive(:make_new).once
+          connection_pool.hold(:read_only) {}
         end
 
         context 'with an on_disconnect callback' do
           it 'calls the callback with the error' do
             callback = double("callback")
-            Sequel::ShardedSingleFailoverConnectionPool.on_disconnect = callback
+            Sequel::ShardedSingleFailoverConnectionPool.register_on_disconnect_callback callback
 
-            expect(callback).to receive(:call).with(an_instance_of(Sequel::DatabaseDisconnectError), @connection_pool)
+            expect(callback).to receive(:call).with(an_instance_of(Sequel::DatabaseDisconnectError), connection_pool)
             call_count = 0
-            @connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
+            connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
           end
         end
 
@@ -71,35 +74,46 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
           it 'raises an exception' do
             allow_any_instance_of(Sequel::Mock::Database).to receive(:in_transaction?).and_return(true)
             expect {
-              @connection_pool.hold(:read_only) { raise Sequel::DatabaseDisconnectError }
+              connection_pool.hold(:read_only) { raise Sequel::DatabaseDisconnectError }
             }.to raise_error(Sequel::DatabaseDisconnectError)
           end
         end
       end
     end
 
-    context 'with default or arbritrary server' do
+    context 'with default or arbitrary server' do
       it 'does no retry logic and raises error' do
         call_count = 0
         expect {
-          @connection_pool.hold { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
+          connection_pool.hold { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
         }.to raise_error(Sequel::DatabaseDisconnectError)
         expect(call_count).to eq(1)
       end
     end
   end
 
-  describe '.on_disconnect' do
-    around do |example|
-      callback = Sequel::ShardedSingleFailoverConnectionPool.on_disconnect
-      example.run
-      Sequel::ShardedSingleFailoverConnectionPool.on_disconnect = callback
+  describe '#unstick' do
+    it 'calls on_unstick callbacks' do
+      callback = double(call: true)
+      Sequel::ShardedSingleFailoverConnectionPool.register_on_unstick_callback callback
+      connection_pool.unstick(:read_only)
+      expect(callback).to have_received(:call).with(connection_pool)
     end
+  end
 
-    it 'sets the on_disconnect attribute' do
+  describe '.register_on_disconnect_callback' do
+    it 'adds to the on_disconnect attribute' do
       callback = Proc.new{ puts "woo" }
-      Sequel::ShardedSingleFailoverConnectionPool.on_disconnect = callback
-      expect(Sequel::ShardedSingleFailoverConnectionPool.on_disconnect).to eq(callback)
+      Sequel::ShardedSingleFailoverConnectionPool.register_on_disconnect_callback callback
+      expect(Sequel::ShardedSingleFailoverConnectionPool.on_disconnect).to eq([callback])
+    end
+  end
+
+  describe '.register_on_disconnect_callback' do
+    it 'adds to the on_unstick attribute' do
+      callback = Proc.new{ puts "woo" }
+      Sequel::ShardedSingleFailoverConnectionPool.register_on_unstick_callback callback
+      expect(Sequel::ShardedSingleFailoverConnectionPool.on_unstick).to eq([callback])
     end
   end
 end
