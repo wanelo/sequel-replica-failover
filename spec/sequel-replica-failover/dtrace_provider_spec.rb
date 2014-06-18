@@ -3,7 +3,7 @@ require 'spec_helper'
 describe Sequel::ReplicaFailover::DTraceProvider do
   describe 'initialize' do
     it 'creates a new provider' do
-      USDT::Provider.should_receive(:create).with(:ruby, :sequel_replica_failover)
+      expect(USDT::Provider).to receive(:create).with(:ruby, :sequel_replica_failover)
       Sequel::ReplicaFailover::DTraceProvider.new
     end
   end

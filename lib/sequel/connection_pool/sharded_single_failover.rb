@@ -23,22 +23,21 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
 
     super(server, &block)
   rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
-    if server == :read_only && !@db.in_transaction?(server: :read_only)
-      self.class.on_disconnect.call(e, self) if self.class.on_disconnect
-      disconnect_server(server)
-      @conns[server] = nil
+    raise if server != :read_only
+    raise if @db.in_transaction?(server: :read_only)
 
-      stick
+    self.class.on_disconnect.call(e, self) if self.class.on_disconnect
+    disconnect_server(server)
+    @conns[server] = nil
 
-      if @stuck_times >= @pool_retry_count
-        unstick(server)
-        raise
-      end
+    stick
 
-      hold(server, &block)
-    else
+    if @stuck_times >= @pool_retry_count
+      unstick(server)
       raise
     end
+
+    hold(server, &block)
   end
 
   def pool_type
