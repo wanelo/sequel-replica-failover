@@ -1,22 +1,23 @@
 require 'spec_helper'
-CONNECTION_POOL_DEFAULTS = {:pool_retry_count => 3,
-                            :pool_stick_timeout => 15,
-                            :pool_timeout=>5,
-                            :pool_sleep_time=>0.001,
-                            :max_connections=>4,
-                            :pool_class => Sequel::ShardedSingleFailoverConnectionPool,
-                            :servers => { :read_only => {} } }
-
-mock_db = lambda do |*a, &b|
-  db = Sequel.mock
-  (class << db; self end).send(:define_method, :connect){|c| b.arity == 1 ? b.call(c) : b.call} if b
-  if b2 = a.shift
-    (class << db; self end).send(:define_method, :disconnect_connection){|c| b2.arity == 1 ? b2.call(c) : b2.call}
-  end
-  db
-end
 
 describe Sequel::ShardedSingleFailoverConnectionPool do
+  CONNECTION_POOL_DEFAULTS = {:pool_retry_count => 3,
+                              :pool_stick_timeout => 15,
+                              :pool_timeout=>5,
+                              :pool_sleep_time=>0.001,
+                              :max_connections=>4,
+                              :pool_class => Sequel::ShardedSingleFailoverConnectionPool,
+                              :servers => { :read_only => {} } }
+
+  mock_db = lambda do |*a, &b|
+    db = Sequel.mock
+    (class << db; self end).send(:define_method, :connect){|c| b.arity == 1 ? b.call(c) : b.call} if b
+    if b2 = a.shift
+      (class << db; self end).send(:define_method, :disconnect_connection){|c| b2.arity == 1 ? b2.call(c) : b2.call}
+    end
+    db
+  end
+
   describe '#hold' do
     before do
       msp = proc { @max_size=3 }
