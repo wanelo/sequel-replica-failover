@@ -27,3 +27,5 @@ module Sequel
     end
   end
 end
+
+Sequel::ReplicaFailover::DTraceProvider.provider
