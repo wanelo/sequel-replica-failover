@@ -19,8 +19,8 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
   end
 
   after do
-    Sequel::ShardedSingleFailoverConnectionPool.clear_on_disconnect_callbacks
-    Sequel::ShardedSingleFailoverConnectionPool.clear_on_unstick_callbacks
+    Sequel::ShardedSingleFailoverConnectionPool.clear_on_retry_callbacks
+    Sequel::ShardedSingleFailoverConnectionPool.clear_on_reset_callbacks
   end
 
   let(:msp) { proc { @max_size=3 } }
@@ -59,10 +59,10 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
           connection_pool.hold(:read_only) {}
         end
 
-        context 'with an on_disconnect callback' do
+        context 'with an on_retry callback' do
           it 'calls the callback with the error' do
             callback = double("callback")
-            Sequel::ShardedSingleFailoverConnectionPool.register_on_disconnect_callback callback
+            Sequel::ShardedSingleFailoverConnectionPool.register_on_retry_callback callback
 
             expect(callback).to receive(:call).with(an_instance_of(Sequel::DatabaseDisconnectError), connection_pool)
             call_count = 0
@@ -92,28 +92,28 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
     end
   end
 
-  describe '#unstick' do
-    it 'calls on_unstick callbacks' do
+  describe '#reset_retries' do
+    it 'calls on_reset callbacks' do
       callback = double(call: true)
-      Sequel::ShardedSingleFailoverConnectionPool.register_on_unstick_callback callback
-      connection_pool.unstick(:read_only)
+      Sequel::ShardedSingleFailoverConnectionPool.register_on_reset_callback callback
+      connection_pool.reset_retries(:read_only)
       expect(callback).to have_received(:call).with(connection_pool)
     end
   end
 
-  describe '.register_on_disconnect_callback' do
-    it 'adds to the on_disconnect attribute' do
+  describe '.register_on_retry_callback' do
+    it 'adds to the on_retry attribute' do
       callback = Proc.new{ puts "woo" }
-      Sequel::ShardedSingleFailoverConnectionPool.register_on_disconnect_callback callback
-      expect(Sequel::ShardedSingleFailoverConnectionPool.on_disconnect).to eq([callback])
+      Sequel::ShardedSingleFailoverConnectionPool.register_on_retry_callback callback
+      expect(Sequel::ShardedSingleFailoverConnectionPool.on_retry).to eq([callback])
     end
   end
 
-  describe '.register_on_disconnect_callback' do
-    it 'adds to the on_unstick attribute' do
+  describe '.register_on_retry_callback' do
+    it 'adds to the on_reset attribute' do
       callback = Proc.new{ puts "woo" }
-      Sequel::ShardedSingleFailoverConnectionPool.register_on_unstick_callback callback
-      expect(Sequel::ShardedSingleFailoverConnectionPool.on_unstick).to eq([callback])
+      Sequel::ShardedSingleFailoverConnectionPool.register_on_reset_callback callback
+      expect(Sequel::ShardedSingleFailoverConnectionPool.on_reset).to eq([callback])
     end
   end
 end
