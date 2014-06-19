@@ -41,7 +41,8 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
       unstick(:read_only)
     end
 
-    super(server, &block)
+    server = pick_server(server)
+    block.call(@conns[server] ||= make_new(server))
   rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
     raise if server != :read_only
     raise if @db.in_transaction?(server: :read_only)
