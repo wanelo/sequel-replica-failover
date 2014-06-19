@@ -53,6 +53,30 @@ queries could be retried on a different connection. Why one would open a transac
 on a `:read_only` connection is unclear to us, but it is possible and a concern to
 be aware of.
 
+## Callbacks
+
+The connection pool allows for user-defined callbacks when a query is retried as well
+as when the retry logic is reset (on timeout or on retry count). Callbacks should be
+a `Proc`, or something that ducktypes to one.
+
+Callbacks to retry take an `error` object and a `pool`, as follows:
+
+```ruby
+Sequel::ShardedSingleFailoverConnectionPool.register_on_retry_callback ->(error, pool) {
+  ReportingTool.notify(error)
+  puts pool.inspect
+  puts pool.failing_over?
+}
+```
+
+Callbacks on reset take a `pool` object, as follows:
+
+```ruby
+Sequel::ShardedSingleFailoverConnectionPool.register_on_reset_callback ->(pool) {
+  puts pool.inspect
+}
+```
+
 ## Contributing
 
 1. Fork it
