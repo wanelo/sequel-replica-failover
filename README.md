@@ -48,7 +48,10 @@ DB = Sequel.connect({
                     })
 ```
 
-
+Please note that if you were to open a transaction on a `:read_only` connection,
+queries could be retried on a different connection. Why one would open a transaction
+on a `:read_only` connection is unclear to us, but it is possible and a concern to
+be aware of.
 
 ## Contributing
 

@@ -2,10 +2,13 @@ require 'sequel'
 require 'sequel/connection_pool/sharded_single'
 
 class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnectionPool
+  attr_accessor :failing_over
+
   def initialize(db, opts = OPTS)
     super
     @pool_stick_timeout = opts[:pool_stick_timeout] || 15
-    @pool_retry_count   = opts[:pool_retry_count]   || 5
+    @pool_retry_count = opts[:pool_retry_count] || 5
+    @failing_over = false
   end
 
   @on_disconnect = []
@@ -35,32 +38,29 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
   # Yields the connection to the supplied block for the given server.
   # This method simulates the ConnectionPool#hold API.
   def hold(server=:default, &block)
-    if server == :read_only &&
-       @stuck_at &&
-       Time.now.to_i - @stuck_at.to_i >= @pool_stick_timeout
-      unstick(:read_only)
+    unstick(:read_only) if failover_timed_out?(server)
+
+    loop do
+      begin
+        @response = super(server, &block)
+        break
+      rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
+        raise if server != :read_only
+
+        unless self.class.on_disconnect.empty?
+          self.class.on_disconnect.each { |callback| callback.call(e, self) }
+        end
+
+        stick
+
+        if @stuck_times >= @pool_retry_count
+          unstick(server)
+          raise
+        end
+      end
     end
 
-    server = pick_server(server)
-    block.call(@conns[server] ||= make_new(server))
-  rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
-    raise if server != :read_only
-    raise if @db.in_transaction?(server: :read_only)
-
-    unless self.class.on_disconnect.empty?
-      self.class.on_disconnect.each { |callback| callback.call(e, self) }
-    end
-    disconnect_server(server)
-    @conns[server] = nil
-
-    stick
-
-    if @stuck_times >= @pool_retry_count
-      unstick(server)
-      raise
-    end
-
-    hold(server, &block)
+    @response
   end
 
   def pool_type
@@ -79,6 +79,12 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
   end
 
   private
+
+  def failover_timed_out?(server)
+    server == :read_only &&
+      @stuck_at &&
+      Time.now.to_i - @stuck_at.to_i >= @pool_stick_timeout
+  end
 
   def stick
     @stuck_times ||= 0
