@@ -2,8 +2,6 @@ require 'sequel'
 require 'sequel/connection_pool/sharded_single'
 
 class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnectionPool
-  attr_accessor :failing_over
-
   def initialize(db, opts = OPTS)
     super
     @pool_stick_timeout = opts[:pool_stick_timeout] || 15
@@ -47,11 +45,11 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
       rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
         raise if server != :read_only
 
+        increment_retries
+
         unless self.class.on_retry.empty?
           self.class.on_retry.each { |callback| callback.call(e, self) }
         end
-
-        increment_retries
 
         if @retry_count >= @pool_retry_count
           reset_retries(server)
@@ -67,6 +65,14 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     :sharded_single_failover
   end
 
+  def failover!
+    @failing_over = true
+  end
+
+  def failing_over?
+    !!@failing_over
+  end
+
   def reset_retries(server)
     unless self.class.on_reset.empty?
       self.class.on_reset.each { |callback| callback.call(self) }
@@ -74,6 +80,7 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
     probe(server.to_s) { |p| p.unstick }
     disconnect_server(server)
     @conns[server] = nil
+    @failing_over = false
     @failed_at = nil
     @retry_count = nil
   end
@@ -87,6 +94,7 @@ class Sequel::ShardedSingleFailoverConnectionPool < Sequel::ShardedSingleConnect
   end
 
   def increment_retries
+    failover!
     @retry_count ||= 0
     probe(@retry_count) { |p| p.stick }
     @failed_at ||= Time.now

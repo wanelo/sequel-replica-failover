@@ -29,6 +29,13 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
   describe '#hold' do
     context 'with read_only server' do
       context 'when block raises a database connection error' do
+        it 'fails over' do
+          call_count = 0
+          allow(connection_pool).to receive(:failover!)
+          connection_pool.hold(:read_only) { call_count += 1; raise Sequel::DatabaseDisconnectError if call_count == 1 }
+          expect(connection_pool).to have_received(:failover!)
+        end
+
         it 'retries until the a successful connection is made' do
           call_count = 0
           expect {
@@ -92,12 +99,31 @@ describe Sequel::ShardedSingleFailoverConnectionPool do
     end
   end
 
+  describe '#failover!' do
+    it 'changes failing_over? to true' do
+      expect {
+        connection_pool.failover!
+      }.to change {
+        connection_pool.failing_over?
+      }.from(false).to(true)
+    end
+  end
+
   describe '#reset_retries' do
     it 'calls on_reset callbacks' do
       callback = double(call: true)
       Sequel::ShardedSingleFailoverConnectionPool.register_on_reset_callback callback
       connection_pool.reset_retries(:read_only)
       expect(callback).to have_received(:call).with(connection_pool)
+    end
+
+    it 'changes failing_over? to false' do
+      connection_pool.failover!
+      expect {
+        connection_pool.reset_retries(:read_only)
+      }.to change {
+        connection_pool.failing_over?
+      }.from(true).to(false)
     end
   end
 
