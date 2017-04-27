@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = Sequel::ReplicaFailover::VERSION
   spec.authors       = ["Paul Henry"]
   spec.email         = ["paul@wanelo.com"]
-  spec.description   = %q{Automatically failover between replicas when they go down.}
-  spec.summary       = %q{Automatically failover when replicas go down.}
+  spec.description   = %q{Automatically fail over between replicas when they go down.}
+  spec.summary       = %q{Automatically fail over when replicas go down.}
   spec.homepage      = "https://github.com/wanelo/sequel-replica-failover"
   spec.license       = "MIT"
 
@@ -18,12 +18,12 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "sequel", '~> 4'
-  spec.add_dependency "ruby-usdt"
+  spec.add_dependency 'sequel', '~> 4'
+  spec.add_dependency 'ruby-usdt'
 
-  spec.add_development_dependency "bundler"
-  spec.add_development_dependency "rake"
-  spec.add_development_dependency "rspec"
-  spec.add_development_dependency "timecop"
-  spec.add_development_dependency "guard-rspec"
+  spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'rspec'
+  spec.add_development_dependency 'timecop'
+  spec.add_development_dependency 'guard-rspec'
 end
