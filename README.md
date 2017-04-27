@@ -1,9 +1,9 @@
 # Automatic read-only failover for Sequel
 
 [![Gem Version](https://badge.fury.io/rb/sequel-replica-failover.png)](http://badge.fury.io/rb/sequel-replica-failover)
-[![Build
-Status](https://travis-ci.org/wanelo/sequel-replica-failover.svg?branch=master)](https://travis-ci.org/wanelo/sequel-replica-failover)
-[![Code Climate](https://codeclimate.com/github/wanelo/sequel-replica-failover.png)](https://codeclimate.com/github/wanelo/sequel-replica-failover)
+[![Build Status](https://travis-ci.org/wanelo/sequel-replica-failover.svg?branch=master)](https://travis-ci.org/wanelo/sequel-replica-failover)
+[![Code Climate](https://codeclimate.com/github/wanelo/sequel-replica-failover/badges/gpa.svg)](https://codeclimate.com/github/wanelo/sequel-replica-failover)
+[![Test Coverage](https://codeclimate.com/github/wanelo/sequel-replica-failover/badges/coverage.svg)](https://codeclimate.com/github/wanelo/sequel-replica-failover/coverage)
 
 This provides a NOT-THREADSAFE sharded connection pool for failing over between configured replicas.
 
@@ -36,16 +36,16 @@ When initializing a Sequel connection, set the pool class:
 
 ```ruby
 DB = Sequel.connect({
-                      :adapter => 'postgres',
-                      :user => 'postgres',
-                      :password => 'postgres',
-                      :host => '127.0.0.1',
-                      :database => 'postgres',
-                      :port => 5432,
-                      :pool_class => Sequel::ShardedSingleFailoverConnectionPool,
-                      :pool_retry_count => 10,
-                      :pool_stick_timeout => 30
-                    })
+  adapter:            'postgres',
+  user:               'postgres',
+  password:           'postgres',
+  host:               '127.0.0.1',
+  database:           'postgres',
+  port:               5432,
+  pool_class:         Sequel::ShardedSingleFailoverConnectionPool,
+  pool_retry_count:   10,
+  pool_stick_timeout: 30
+})
 ```
 
 Please note that if you were to open a transaction on a `:read_only` connection,
